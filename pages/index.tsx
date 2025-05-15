@@ -35,7 +35,7 @@ export default function OnboardingChat() {
 
     setChecklist(updatedChecklist);
     setMessages([...updatedMessages, { sender: 'ai', text: aiResponse }]);
-  }; // ← denna måste avsluta funktionen korrekt!
+  }; // ← Den här är superviktig
 
   return (
     <div className='flex flex-col md:flex-row min-h-screen'>
@@ -83,6 +83,7 @@ export default function OnboardingChat() {
     </div>
   );
 }
+
 
 
 
