@@ -1,72 +1,110 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 
-export default function OnboardingChat() {
-  const [messages, setMessages] = useState([
-    { sender: 'ai', text: 'Hej! Vill du börja med att välja din leverantör?' }
-  ]);
+type Workshop = {
+  id: string;
+  namn: string;
+  status: 'ny' | 'aktiv';
+  moduler: string[];
+};
+
+const workshopData: Workshop[] = [
+  {
+    id: 've1234',
+    namn: 'Däckteam Karlstad',
+    status: 'aktiv',
+    moduler: ['fortnox', 'vecheck']
+  },
+  {
+    id: 'ny001',
+    namn: 'Nystart AB',
+    status: 'ny',
+    moduler: []
+  }
+];
+
+const quickReplies = [
+  'Hur kopplar jag Fortnox?',
+  'Var hittar jag mina lagersaldon?',
+  'Hur fungerar Vecheck?'
+];
+
+export default function OnboardingSupportChat() {
+  const router = useRouter();
+  const { site_id } = router.query;
+  const [workshop, setWorkshop] = useState<Workshop | null>(null);
+  const [messages, setMessages] = useState<{ sender: 'ai' | 'user'; text: string }[]>([]);
   const [input, setInput] = useState('');
-  const [checklist, setChecklist] = useState({
-    kontaktinfo: false,
-    leverantor: false,
-    integration: false
-  });
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    const newMessage = { sender: 'user', text: input };
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    setInput('');
-
-    let aiResponse = 'Tack! Jag markerar det steget som klart.';
-    const updatedChecklist = { ...checklist };
-
-    if (input.toLowerCase().includes('leverantör')) {
-      updatedChecklist.leverantor = true;
-      aiResponse = 'Toppen! Jag markerar Leverantörsval som klart.';
-    } else if (input.toLowerCase().includes('kontakt')) {
-      updatedChecklist.kontaktinfo = true;
-      aiResponse = 'Kontaktuppgifterna är sparade.';
-    } else if (input.toLowerCase().includes('fortnox')) {
-      updatedChecklist.integration = true;
-      aiResponse = 'Jag har markerat Fortnox-integrationen som klart.';
+  useEffect(() => {
+    if (site_id && typeof site_id === 'string') {
+      const found = workshopData.find(w => w.id.toLowerCase() === site_id.toLowerCase());
+      if (found) {
+        setWorkshop(found);
+        const greeting = found.status === 'ny'
+          ? `Hej ${found.namn}! Jag hjälper dig gärna att komma igång med Eontyre.`
+          : `Hej ${found.namn}! Vad kan jag hjälpa dig med idag?`;
+        setMessages([{ sender: 'ai', text: greeting }]);
+      } else {
+        setMessages([{ sender: 'ai', text: 'Jag kunde tyvärr inte hitta din verkstad. Kontrollera länken.' }]);
+      }
     }
+  }, [site_id]);
 
-    setChecklist(updatedChecklist);
-    setMessages([...updatedMessages, { sender: 'ai', text: aiResponse }]);
+  const handleSend = (text: string) => {
+    if (!text.trim()) return;
+    const updated = [...messages, { sender: 'user', text }];
+    const aiReply = workshop?.status === 'ny'
+      ? 'Tack! Jag markerar detta som ett onboardingsteg.'
+      : 'Jag förstår, här är information om det du frågade.';
+    setMessages([...updated, { sender: 'ai', text: aiReply }]);
+    setInput('');
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Eontyre Onboarding</h1>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">Eontyre Chatbot</h1>
 
-      <div className="space-y-2 mb-4">
-        {messages.map((msg, index) => (
-          <div key={index} className={msg.sender === 'ai' ? 'text-blue-600' : 'text-gray-800'}>
+      {workshop && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-500">Inloggad som: <strong>{workshop.namn}</strong> ({workshop.status})</p>
+        </div>
+      )}
+
+      <div className="mb-4 space-y-2">
+        {messages.map((msg, i) => (
+          <div key={i} className={`text-${msg.sender === 'ai' ? 'blue' : 'gray'}-700`}>
             <strong>{msg.sender === 'ai' ? 'AI' : 'Du'}:</strong> {msg.text}
           </div>
         ))}
       </div>
 
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Skriv ett meddelande..."
-        className="border p-2 w-full mb-2"
-      />
-      <button onClick={handleSend} className="bg-blue-600 text-white px-4 py-2 rounded">
-        Skicka
-      </button>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {quickReplies.map((q, i) => (
+          <button
+            key={i}
+            onClick={() => handleSend(q)}
+            className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded"
+          >
+            {q}
+          </button>
+        ))}
+      </div>
 
-      <div className="mt-6">
-        <h2 className="font-semibold mb-2">Checklista</h2>
-        <ul className="list-disc list-inside">
-          <li className={checklist.kontaktinfo ? 'line-through' : ''}>Kontaktuppgifter</li>
-          <li className={checklist.leverantor ? 'line-through' : ''}>Val av leverantör</li>
-          <li className={checklist.integration ? 'line-through' : ''}>Fortnox-integration</li>
-        </ul>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          className="border p-2 flex-1 rounded"
+          placeholder="Skriv ett meddelande..."
+        />
+        <button
+          onClick={() => handleSend(input)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Skicka
+        </button>
       </div>
     </div>
   );
